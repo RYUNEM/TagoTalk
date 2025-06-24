@@ -1,0 +1,73 @@
+#include <Arduino.h>
+#include <WiFi.h>
+#include <WiFiClient.h>
+#include <ArduinoJson.h>
+
+// Credentials of the master ESP32 Access Point
+const char* ssid = "ESP32_AP";
+const char* password = "12345678";
+
+// Master device IP and port
+const char* host = "192.168.4.1"; // default IP for ESP32 in AP mode
+const uint16_t port = 80;
+
+// WiFi client
+WiFiClient client;
+
+void setup() {
+  Serial.begin(115200);
+  pinMode(BUILTIN_LED, OUTPUT);
+
+  // Connect to the master ESP32 Access Point
+  WiFi.begin(ssid, password);
+  Serial.print("Connecting to WiFi");
+
+  // Wait until connected
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(1000);
+    Serial.print(".");
+  }
+
+  Serial.println("\nConnected to WiFi.");
+  Serial.print("IP address: ");
+  Serial.println(WiFi.localIP());
+
+  // Try to connect to the master TCP server
+  while (!client.connect(host, port)) {
+    Serial.println("Connecting to master TCP server...");
+    delay(1000);
+  }
+
+  Serial.println("Connected to master device via TCP.");
+  digitalWrite(BUILTIN_LED, HIGH);
+}
+
+void loop() {
+  if (client.connected() && client.available()) {
+    String incomingData = client.readStringUntil('\n');
+    Serial.print("Received JSON: ");
+    Serial.println(incomingData);
+
+    JsonDocument jsonDoc;
+    DeserializationError error = deserializeJson(jsonDoc, incomingData);
+
+    if (error) {
+      Serial.print("JSON Deserialization failed: ");
+      Serial.println(error.c_str());
+      return;
+    }
+
+    int pin_number = jsonDoc["pin_number"];
+    bool pin_status = jsonDoc["pin_status"];
+
+    pinMode(pin_number, OUTPUT);
+    digitalWrite(pin_number, pin_status);
+
+    Serial.println("Command executed.");
+    
+    // Optional: send confirmation
+    client.println("Command executed successfully");
+  }
+
+  delay(50);
+}
