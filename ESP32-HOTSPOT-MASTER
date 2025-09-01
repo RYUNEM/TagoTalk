@@ -1,0 +1,100 @@
+
+
+#include <Arduino.h>
+#include <WiFi.h>
+#include <WiFiClient.h>
+#include <ArduinoJson.h>
+
+// Access Point credentials
+const char* ssid = "ESP32_AP";
+const char* password = "12345678";
+
+// Set up a WiFi server on port 80
+WiFiServer server(80);
+WiFiClient client;
+
+// Define a struct to encapsulate button-related variables
+struct Button {
+  const int pin;
+  int state;
+  int lastState;
+  bool isOn;
+};
+
+Button buttons[] = {
+    {4, 0, 0, false},
+    {5, 0, 0, false},
+    {15, 0, 0, false}
+};
+
+const int numButtons = sizeof(buttons) / sizeof(buttons[0]);
+
+void loopThroughButton();
+
+void setup() {
+  Serial.begin(115200);
+
+  // Set up button pins
+  for (int i = 0; i < numButtons; i++) {
+    pinMode(buttons[i].pin, INPUT);
+  }
+
+  pinMode(BUILTIN_LED, OUTPUT);
+
+  // Start ESP32 in Access Point mode
+  WiFi.softAP(ssid, password);
+  Serial.print("Access Point started. IP: ");
+  Serial.println(WiFi.softAPIP());
+
+  // Start the TCP server
+  server.begin();
+  Serial.println("TCP server started.");
+}
+
+void loop() {
+  // If no client is connected, check for new connections
+  if (!client || !client.connected()) {
+    client = server.available();
+    if (client) {
+      Serial.println("Client connected.");
+      digitalWrite(BUILTIN_LED, HIGH);
+    }
+  }
+
+  // Handle button logic and send to client if connected
+  loopThroughButton();
+
+  delay(50);
+}
+
+void loopThroughButton() {
+  for (int i = 0; i < numButtons; i++) {
+    buttons[i].state = digitalRead(buttons[i].pin);
+
+    if (buttons[i].state != buttons[i].lastState) {
+      if (buttons[i].state == HIGH) {
+        buttons[i].isOn = !buttons[i].isOn;
+
+        Serial.print("Button on pin ");
+        Serial.print(buttons[i].pin);
+        Serial.print(": ");
+        Serial.println(buttons[i].isOn ? "ON" : "OFF");
+
+        JsonDocument jsonDoc;
+        jsonDoc["pin_number"] = buttons[i].pin;
+        jsonDoc["pin_status"] = buttons[i].isOn;
+
+        String jsonString;
+        serializeJson(jsonDoc, jsonString);
+
+        if (client && client.connected()) {
+          client.println(jsonString);
+        }
+      }
+
+      delay(50); // Debounce delay
+    }
+
+    buttons[i].lastState = buttons[i].state;
+  }
+}
