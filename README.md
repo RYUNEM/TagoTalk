@@ -40,5 +40,5 @@ Framework: React Native
 Language: JavaScript (js)
 
 # Screenshots
-Screenshots will be added here
+Screenshots will be added here..
 
