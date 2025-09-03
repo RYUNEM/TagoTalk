@@ -15,6 +15,7 @@ By combining these technologies, TagoTalk ensures reliable, low-latency communic
 * Server -
 
 # Architecture
+
 src/
 ├── components/              # Reusable UI parts (buttons, cards, modals)
 │   └── (future UI widgets)
@@ -32,6 +33,7 @@ src/
 │   └── HostServer.js         
 │
 ├── App.tsx                   
+
 
 # Technology Stack
 Framework: React Native
